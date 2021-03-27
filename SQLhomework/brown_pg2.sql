@@ -1,9 +1,10 @@
 #Page 2 is reserved for the INSERT statement required in Problem 3.
+-- 2. Load sales_orders with the raw data provided in pg2. You may write and leave the entire INSERT statement there.
 Use da_bootcamp_brown;
 
 SELECT * FROM sales_orders; -- Confirm sales_order is already created and empty
 
-#Data to insert into sales_orders
+INSERT INTO sales_orders (order_no, order_date, item_id, quantity) VALUES
 (1001,'2019-07-01','itm003',37),
 (1001,'2019-07-01','itm002',8),
 (1001,'2019-07-01','itm001',24),

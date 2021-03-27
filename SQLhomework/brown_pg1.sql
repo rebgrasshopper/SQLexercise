@@ -31,21 +31,27 @@ Use da_bootcamp_brown;
 		drop animals if it exists, and drop zoo_animals if it exists.
 */
 
+-- 1. Create a new table 'animals' with an ID column (type INT) and 2 additional columns (any name and datatype).
 CREATE TABLE IF NOT EXISTS animals (
 	id INT AUTO_INCREMENT PRIMARY KEY,
 	commonName VARCHAR(150) NOT NULL,
     scientificName VARCHAR(250) NOT NULL
 );
 
+-- 2. Add a new column to the table, then DROP one of the other columns (other than ID).
 ALTER TABLE animals
 	ADD COLUMN species VARCHAR(100) NOT NULL,
     DROP COLUMN scientificName;
 
+-- 3. Rename the table to 'zoo_animals'
 RENAME TABLE
 	animals TO zoo_animals;
 
+-- 4. Select all records from the (empty) zoo_animals table
 SELECT * FROM zoo_animals;
 
+ -- 5. Drop the table - actually, to be on the safe side, use the "if exists" condition to 
+		-- drop animals if it exists, and drop zoo_animals if it exists.
 DROP TABLE IF EXISTS animals;
 DROP TABLE IF EXISTS zoo_animals;
 
@@ -73,13 +79,17 @@ Raw data provided:
 ('itm005',3,'Broccoli (head)')
 */
 
+
 DROP TABLE IF EXISTS item_details;
+
+-- 1. Create table item_details using field names (item_id, item_price, item_description), using sensible data types.
 CREATE TABLE item_details (	
     item_id VARCHAR(20) PRIMARY KEY,
     item_price DECIMAL(8,2) NOT NULL,
     item_description VARCHAR(250) NOT NULL
 );
 
+-- 2. INSERT all raw data provided into item_detail. COMMIT the change.
 INSERT INTO item_details VALUES
 ('itm001',2,'Avocado (ind)'),
 ('itm002',60,'Apple Bag'),
@@ -89,23 +99,29 @@ INSERT INTO item_details VALUES
 
 COMMIT;
 
+-- 3. SELECT * to confirm all 5 rows are present.
 SELECT * FROM item_details;
 
+-- 4. DELETE all records for which the item price is greater-than-or-equal-to 2. 
 DELETE FROM item_details
 WHERE item_price >= 2;
 
+-- 5. SELECT * to confirm deletions. ROLLBACK the change, and SELECT * once again to confirm 5 original rows present.
 SELECT * FROM item_details;
 
 ROLLBACK;
 
 SELECT * FROM item_details;
 
+--  6. Ah, the price for Apples was wrong. UPDATE that record to price 6 instead of 60.
 UPDATE item_details
 SET item_price = 6 WHERE item_id = 'itm002';
 
+-- 7. The price of Avocados and Broccoli have doubled. UPDATE those records to reflect the price doubling.
 UPDATE item_details
 SET item_price = item_price * 2 WHERE item_id IN ('itm001', 'itm005');
 
+--  8. SELECT * to confirm the records are correct. COMMIT. Table item_details is ready for use in PROBLEM 3.
 SELECT * FROM item_details;
 
 COMMIT;
@@ -143,6 +159,7 @@ COMMIT;
 
 DROP TABLE IF EXISTS sales_orders;
 
+-- 1. Create table sales_orders with 5 columns: record_id, order_no, order_date, item_id, quantity
 CREATE TABLE sales_orders (
 	record_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     order_no BIGINT NOT NULL,
@@ -152,41 +169,42 @@ CREATE TABLE sales_orders (
     
 );
 
-ALTER TABLE sales_orders
-ADD FOREIGN KEY(item_id) REFERENCES item_details(item_id);
-
 SELECT * FROM sales_orders;
 
 -- analysis questions
 
 
--- total number of records of sales_orders
+-- total number of records of sales_orders: 831
 SELECT COUNT(*) FROM sales_orders; 
 
 
--- total number of records for sales_orders INNER JOIN item_details
+-- total number of records for sales_orders INNER JOIN item_details: 828
 SELECT COUNT(*) FROM sales_orders s
 INNER JOIN item_details i ON s.item_id = i.item_id; 
 
 
--- total number of records for sales_orders LEFT JOIN item_details
+-- total number of records for sales_orders LEFT JOIN item_details: 831
 SELECT COUNT(*) FROM sales_orders s
 LEFT JOIN item_details i ON s.item_id = i.item_id; 
 
 
 -- order_no, order_date, and the order_total for the top 10 orders in August in descending order.
+-- used default INNER JOIN, becuase mystery itm006 has no price, and as such cannot compete for top orders by price.
+-- after ordering by order_total I decided to also order by order_no just to make sure that orders with the same total display in a predictable and consistent order.
 SELECT order_no, order_date, (item_price * quantity) as order_total FROM sales_orders
 JOIN item_details on sales_orders.item_id = item_details.item_id
 WHERE DATE_FORMAT(order_date, '%m') = 08
-ORDER BY order_total DESC LIMIT 10; 
+ORDER BY order_total DESC, order_no ASC LIMIT 10; 
 
 
 -- order_no, order_date, and the total quantity for orders HAVING a total quantity greater than 10.
-SELECT order_no, order_date, (item_price * quantity) as order_total FROM sales_orders
-JOIN item_details on sales_orders.item_id = item_details.item_id
-HAVING order_total > 10; 
+-- used LEFT JOIN to include mystery itm006, since focus is on order quantity rather than item price or description.
+SELECT order_no, order_date, quantity FROM sales_orders
+LEFT JOIN item_details on sales_orders.item_id = item_details.item_id
+HAVING quantity > 10; 
 
 -- stored procedure "total_sales_on_date" that returns total sales (in $) given a date
+-- used default INNER JOIN becuase items not matched in either table will not add value to total sales calculations.
 DELIMITER //
 CREATE PROCEDURE total_sales_on_date(
 	IN date DATE
@@ -211,7 +229,7 @@ CALL total_sales_on_date('2019-07-04');
     1. You must create a list in Excel of all dates from 7/1/2019 to 12/31/2019, 
     in order to create the INSERT statement. Comment below with a description of what EXCEL
     functions you used to create the data, copy-pasting the entire functions including the = sign
-    
+
     2. You must then UPDATE date_dim to populate all the columns. You can find date conversion
     functions for MySQL online.
     
@@ -222,13 +240,23 @@ CALL total_sales_on_date('2019-07-04');
 */
 
 #1. Comment here with what Excel functions you used to generate the test dataset.
-
+ --   =CONCAT("('", TEXT(B2,  "YYYY-MM-DD"), "'),")
 
 #2. Occurs entirely on brown_pg4
 
 
 #3. Please write query below. 
-
+-- Default INNER JOIN selected, because focus is on price, and the myster itm006 has no associated price OR description, and as such I don't think it can add value to this query.
+SELECT item_description AS "Item Description", TheDayOfWeek AS "Day Of Week", SUM(quantity * item_price) as "Sales Total" FROM sales_orders s
+	JOIN item_details i ON s.item_id = i.item_id
+	JOIN date_dim d ON DATE(s.order_date) = DATE(d.TheDate)  
+	GROUP BY TheDayOfWeek, item_description
+	ORDER BY item_description, TheDayOfWeek;
 
 #4. Please write query below.
-
+-- LEFT JOIN selected, becuase focus is on quantities sold, and there exist quantities for an item not in item_details table. 
+SELECT s.item_id AS "Item ID", YYYYQQ AS "Quarter YYYYQQ", SUM(quantity) as "Total Quantity" FROM sales_orders s
+	LEFT JOIN item_details i ON s.item_id = i.item_id
+	LEFT JOIN date_dim d ON DATE(s.order_date) = DATE(d.TheDate)  
+	GROUP BY YYYYQQ, s.item_id
+	ORDER BY YYYYQQ, s.item_id;
